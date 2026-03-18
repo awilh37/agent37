@@ -64,8 +64,14 @@ class SimpleNeuralNetwork {
   backward(input, target, learningRate) {
     const m = 1;
 
+    // Ensure target is 2D array format [[val1, val2, ...]]
+    let targetArray = target;
+    if (!Array.isArray(target[0])) {
+      targetArray = [target];
+    }
+
     // Output layer error
-    const output_error = target[0].map((t, j) => this.a2[j] - t);
+    const output_error = targetArray[0].map((t, j) => this.a2[j] - t);
     const d_output = output_error.map((e, j) => e * this.sigmoid_derivative(this.a2[j]));
 
     // Hidden layer error
@@ -203,7 +209,7 @@ export default class Brain {
       
       for (let i = 0; i < 10; i++) {
         this.net.forward([input]);
-        this.net.backward([input], output, adjustedLR);
+        this.net.backward([input], [output], adjustedLR);
       }
     } catch (error) {
       console.error('Reinforcement training error:', error.message);

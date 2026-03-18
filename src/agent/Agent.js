@@ -104,8 +104,13 @@ export default class Agent {
     let totalReward = 0;
     
     episodes.forEach(episode => {
-      this.brain.trainReinforced(episode.state, episode.action, episode.reward);
-      totalReward += episode.reward;
+      // Support both field name formats: (state/action) and (situation/agentAction)
+      const state = episode.state || episode.situation;
+      const action = episode.action || episode.agentAction;
+      const reward = episode.reward || 0;
+      
+      this.brain.trainReinforced(state, action, reward);
+      totalReward += reward;
     });
     
     console.log(`🎯 Trained on ${episodes.length} episodes (avg reward: ${(totalReward / episodes.length).toFixed(3)})`);
