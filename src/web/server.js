@@ -30,22 +30,49 @@ export default class WebServer {
       res.json(this.agent.memory.getAllPatterns());
     });
 
-    this.app.post('/api/agent/task', (req, res) => {
+    this.app.post('/api/agent/task', async (req, res) => {
       const { action, params } = req.body;
       
       if (!action) {
         return res.status(400).json({ error: 'Action required' });
       }
 
-      this.agent.taskQueue.push({
-        id: Math.random().toString(36).substr(2, 9),
-        action,
-        params: params || {},
-        confidence: 0.5,
-        createdAt: Date.now()
-      });
+      try {
+        // Execute task immediately and return results
+        const task = {
+          id: Math.random().toString(36).substr(2, 9),
+          action,
+          params: params || {},
+          confidence: 0.7,
+          createdAt: Date.now()
+        };
 
-      res.json({ success: true, message: 'Task queued' });
+        const result = await this.agent.executor.execute(task);
+        
+        // Store in memory
+        this.agent.memory.addExperience({
+          action: task.action,
+          params: task.params,
+          result: result.success,
+          reward: result.reward,
+          timestamp: Date.now(),
+          details: result.details,
+          generatedCode: result.generatedCode
+        });
+
+        res.json({ 
+          success: true, 
+          message: 'Task executed successfully',
+          taskId: task.id,
+          action: action,
+          result: result
+        });
+      } catch (error) {
+        res.status(500).json({ 
+          error: 'Task execution failed',
+          message: error.message 
+        });
+      }
     });
 
     this.app.post('/api/agent/train', (req, res) => {
@@ -75,8 +102,42 @@ export default class WebServer {
       res.json({ action: req.params.action, successRate: rate });
     });
 
-    // Serve index.html for root
+    this.app.get('/api/training/history', (req, res) => {
+      const stats = this.agent.memory.getStats();
+      res.json({
+        totalExperiences: stats.totalExperiences,
+        patterns: stats.patterns,
+        actionStats: stats.actionStats,
+        successRates: Object.entries(stats.actionStats).reduce((acc, [action, data]) => {
+          acc[action] = data.attempts > 0 ? (data.successes / data.attempts * 100).toFixed(1) : 0;
+          return acc;
+        }, {})
+      });
+    });
+
+    this.app.get('/api/agent/brain-stats', (req, res) => {
+      const brainStats = this.agent.brain.getStats();
+      res.json(brainStats);
+    });
+
+    this.app.get('/api/agent/execution-log', (req, res) => {
+      // Get recent executions from memory
+      const limit = req.query.limit || 10;
+      const stats = this.agent.memory.getStats();
+      
+      res.json({
+        recentExecutions: stats.recentExperiences || [],
+        actionStats: stats.actionStats
+      });
+    });
+
+    // Serve dashboard as root
     this.app.get('/', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+    });
+    
+    // Keep old index for compatibility
+    this.app.get('/old', (req, res) => {
       res.sendFile(path.join(__dirname, 'public', 'index.html'));
     });
   }

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>🤖 AI Agent Dashboard</h1>
+                <div class="header-info">
+                    <span id="agent-id" class="info-badge">Agent ID: Loading...</span>
+                    <span id="uptime" class="info-badge">Uptime: --:--:--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Stats -->
+        <section class="quick-stats">
+            <div class="stat-box">
+                <div class="stat-value" id="total-experiences">0</div>
+                <div class="stat-label">Total Experiences</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="avg-success">0%</div>
+                <div class="stat-label">Avg Success Rate</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="patterns-learned">0</div>
+                <div class="stat-label">Patterns Learned</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="trained-examples">0</div>
+                <div class="stat-label">Trained Examples</div>
+            </div>
+        </section>
+
+        <!-- Panel Buttons -->
+        <section class="panel-buttons">
+            <button class="panel-btn" onclick="openPanel('training')">📚 Training</button>
+            <button class="panel-btn" onclick="openPanel('execution')">⚡ Execute Task</button>
+            <button class="panel-btn" onclick="openPanel('monitor')">📊 Monitor</button>
+            <button class="panel-btn" onclick="openPanel('history')">📋 History</button>
+        </section>
+
+        <!-- Live Status -->
+        <section class="live-status">
+            <h3>📈 Action Success Rates</h3>
+            <div id="success-rates-container" class="success-rates"></div>
+        </section>
+
+        <!-- Auto-refresh Info -->
+        <footer class="footer">
+            <p>Dashboard auto-refreshes every 2 seconds | Last updated: <span id="last-update">--:--:--</span></p>
+        </footer>
+    </div>
+
+    <!-- ==================== MODALS/POPUPS ==================== -->
+
+    <!-- Training Panel -->
+    <div id="training-panel" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePanel('training')">&times;</span>
+            <h2>📚 Training Panel</h2>
+            
+            <div class="training-tabs">
+                <button class="tab-btn active" onclick="switchTab('supervised')">Supervised</button>
+                <button class="tab-btn" onclick="switchTab('reinforced')">Reinforced</button>
+            </div>
+
+            <!-- Supervised Training -->
+            <div id="supervised" class="tab-content active">
+                <h3>Supervised Learning</h3>
+                <p>Teach the agent by providing correct situation-action pairs</p>
+                <textarea id="supervised-data" placeholder="Paste JSON array of scenarios...
+[
+  {
+    &quot;situation&quot;: &quot;user wants a landing page&quot;,
+    &quot;correctAction&quot;: &quot;code&quot;
+  },
+  ...
+]" rows="8"></textarea>
+                <button onclick="trainSupervised()" class="action-btn">🧠 Train Supervised</button>
+                <div id="training-result" class="result-box"></div>
+                <div id="training-progress" class="progress-bar"></div>
+            </div>
+
+            <!-- Reinforced Training -->
+            <div id="reinforced" class="tab-content">
+                <h3>Reinforcement Learning</h3>
+                <p>Teach the agent by scoring its actions (reward: -1 to 1)</p>
+                <textarea id="reinforced-data" placeholder="Paste JSON array of episodes...
+[
+  {
+    &quot;situation&quot;: &quot;create landing page&quot;,
+    &quot;agentAction&quot;: &quot;code html&quot;,
+    &quot;reward&quot;: 0.85
+  },
+  ...
+]" rows="8"></textarea>
+                <button onclick="trainReinforced()" class="action-btn">🎯 Train Reinforced</button>
+                <div id="reinforced-result" class="result-box"></div>
+                <div id="reinforced-progress" class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Execution Panel -->
+    <div id="execution-panel" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePanel('execution')">&times;</span>
+            <h2>⚡ Execute Task</h2>
+            
+            <div class="form-group">
+                <label>Action Type:</label>
+                <select id="task-action" onchange="updateActionHelp()">
+                    <option value="">-- Select Action --</option>
+                    <option value="code">💻 Generate Code</option>
+                    <option value="terminal">🖥️ Terminal Command</option>
+                    <option value="web">🌐 Web Fetch</option>
+                    <option value="learn">📚 Learn</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Parameters (JSON):</label>
+                <textarea id="task-params" placeholder='{
+  "prompt": "create a landing page"
+}' rows="6"></textarea>
+                <small id="action-help" class="help-text">Select an action type to see examples</small>
+            </div>
+
+            <button onclick="executeTask()" class="action-btn">Execute Task</button>
+
+            <!-- Task Confirmation Dialog -->
+            <div id="confirmation-dialog" class="confirmation" style="display: none;">
+                <div class="confirmation-content">
+                    <h3 id="confirm-task-type">Task Confirmation</h3>
+                    <p id="confirm-message">Are you sure?</p>
+                    <div class="confirmation-buttons">
+                        <button onclick="confirmExecution()" class="btn-confirm">✓ Proceed</button>
+                        <button onclick="cancelExecution()" class="btn-cancel">✕ Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Results -->
+            <div id="execution-results" class="results-section" style="display: none;">
+                <h3>Execution Results</h3>
+                <div id="exec-status" class="status-box"></div>
+                <div id="exec-output" class="output-box"></div>
+                <div id="exec-timing" class="timing-box"></div>
+            </div>
+
+            <div id="execution-error" class="error-box"></div>
+        </div>
+    </div>
+
+    <!-- Monitor Panel -->
+    <div id="monitor-panel" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePanel('monitor')">&times;</span>
+            <h2>📊 Monitor Panel</h2>
+            
+            <div class="monitor-grid">
+                <div class="monitor-box">
+                    <h3>Agent Status</h3>
+                    <div id="agent-status-detail" class="status-detail"></div>
+                </div>
+
+                <div class="monitor-box">
+                    <h3>Memory Usage</h3>
+                    <div id="memory-usage" class="memory-detail"></div>
+                </div>
+
+                <div class="monitor-box">
+                    <h3>Brain Statistics</h3>
+                    <div id="brain-stats-detail" class="brain-detail"></div>
+                </div>
+
+                <div class="monitor-box">
+                    <h3>Action Statistics</h3>
+                    <div id="action-stats-detail" class="action-detail"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="history-panel" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePanel('history')">&times;</span>
+            <h2>📋 Execution History</h2>
+            
+            <div class="history-controls">
+                <input type="text" id="history-filter" placeholder="Filter by action..." onkeyup="filterHistory()">
+                <button onclick="clearHistory()" class="secondary-btn">Clear History</button>
+            </div>
+
+            <div id="history-list" class="history-list"></div>
+        </div>
+    </div>
+
+    <!-- Background overlay for modals -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeAllPanels()"></div>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
