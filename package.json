@@ -1,0 +1,21 @@
+{
+  "name": "ai-agent",
+  "version": "0.1.0",
+  "description": "Self-trained AI agent with terminal, web, and coding capabilities",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "train": "node src/training/trainer.js",
+    "dev": "node --watch src/index.js",
+    "clean": "rm -rf data/memory/*.json data/training/*.json"
+  },
+  "keywords": ["ai", "agent", "training", "neural-network"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "uuid": "^9.0.0"
+  }
+}
+

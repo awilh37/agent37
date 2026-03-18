@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Portal 🤖</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 AI Agent Control Portal</h1>
+            <p>Monitor, train, and interact with your self-learning AI</p>
+        </header>
+
+        <div class="dashboard">
+            <!-- Agent Status -->
+            <section class="panel" id="status-panel">
+                <h2>Agent Status</h2>
+                <div id="agent-status" class="status-display">
+                    <p>Loading...</p>
+                </div>
+                <button onclick="refreshStatus()" class="btn btn-primary">Refresh</button>
+            </section>
+
+            <!-- Memory & Learning -->
+            <section class="panel" id="memory-panel">
+                <h2>Memory & Patterns</h2>
+                <div id="memory-stats" class="stats-display">
+                    <p>Loading...</p>
+                </div>
+            </section>
+
+            <!-- Task Execution -->
+            <section class="panel" id="task-panel">
+                <h2>Execute Task</h2>
+                <form onsubmit="executeTask(event)">
+                    <label for="task-action">Action:</label>
+                    <select id="task-action" required>
+                        <option value="">Select an action</option>
+                        <option value="terminal">Terminal Command</option>
+                        <option value="web">Web Task</option>
+                        <option value="code">Code Task</option>
+                        <option value="learn">Learn/Reflect</option>
+                    </select>
+
+                    <label for="task-params">Parameters (JSON):</label>
+                    <textarea id="task-params" placeholder='{"command": "ls"}' rows="3"></textarea>
+
+                    <button type="submit" class="btn btn-success">Send Task</button>
+                </form>
+                <div id="task-result" class="result-display"></div>
+            </section>
+
+            <!-- Training -->
+            <section class="panel" id="training-panel">
+                <h2>Training</h2>
+                <div class="training-section">
+                    <h3>Supervised Learning</h3>
+                    <label for="supervised-data">Training Examples (JSON):</label>
+                    <textarea id="supervised-data" placeholder='[{"situation": {...}, "correctAction": "..."}]' rows="4"></textarea>
+                    <button onclick="trainSupervised()" class="btn btn-info">Train Supervised</button>
+                </div>
+
+                <div class="training-section">
+                    <h3>Reinforcement Learning</h3>
+                    <label for="reinforced-data">Episodes (JSON):</label>
+                    <textarea id="reinforced-data" placeholder='[{"state": {...}, "action": "...", "reward": 0.8}]' rows="4"></textarea>
+                    <button onclick="trainReinforced()" class="btn btn-warning">Train Reinforced</button>
+                </div>
+                <div id="training-result" class="result-display"></div>
+            </section>
+
+            <!-- Success Rates -->
+            <section class="panel" id="success-panel">
+                <h2>Success Rates by Action</h2>
+                <div id="success-rates" class="stats-display">
+                    <p>Loading...</p>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <footer>
+        <p>AI Agent Training Framework v0.1 | Check console for detailed logs</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
