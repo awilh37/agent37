@@ -107,13 +107,31 @@ async function executeTask(event) {
 
 async function trainSupervised() {
     try {
-        const dataText = document.getElementById('supervised-data').value;
+        let dataText = document.getElementById('supervised-data').value.trim();
+        
+        // Handle multiple objects without array brackets
+        if (dataText.startsWith('{') && !dataText.startsWith('[')) {
+            // Count braces to detect if it's multiple objects
+            const openBraces = (dataText.match(/{/g) || []).length;
+            const closeBraces = (dataText.match(/}/g) || []).length;
+            
+            // If multiple object pairs, wrap in brackets
+            if (openBraces > 1 || (dataText.match(/}\s*,\s*{/g) || []).length > 0) {
+                dataText = '[' + dataText + ']';
+            } else {
+                dataText = '[' + dataText + ']';
+            }
+        }
+        
         const data = JSON.parse(dataText);
+        
+        // Ensure data is an array
+        const dataArray = Array.isArray(data) ? data : [data];
 
         const response = await fetch('/api/agent/train', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'supervised', data })
+            body: JSON.stringify({ type: 'supervised', data: dataArray })
         });
 
         const result = await response.json();
@@ -140,13 +158,31 @@ async function trainSupervised() {
 
 async function trainReinforced() {
     try {
-        const dataText = document.getElementById('reinforced-data').value;
+        let dataText = document.getElementById('reinforced-data').value.trim();
+        
+        // Handle multiple objects without array brackets
+        if (dataText.startsWith('{') && !dataText.startsWith('[')) {
+            // Count braces to detect if it's multiple objects
+            const openBraces = (dataText.match(/{/g) || []).length;
+            const closeBraces = (dataText.match(/}/g) || []).length;
+            
+            // If multiple object pairs, wrap in brackets
+            if (openBraces > 1 || (dataText.match(/}\s*,\s*{/g) || []).length > 0) {
+                dataText = '[' + dataText + ']';
+            } else {
+                dataText = '[' + dataText + ']';
+            }
+        }
+        
         const data = JSON.parse(dataText);
+        
+        // Ensure data is an array
+        const dataArray = Array.isArray(data) ? data : [data];
 
         const response = await fetch('/api/agent/train', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'reinforced', data })
+            body: JSON.stringify({ type: 'reinforced', data: dataArray })
         });
 
         const result = await response.json();

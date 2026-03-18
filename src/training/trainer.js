@@ -56,7 +56,18 @@ async function main() {
 async function supervisedTraining() {
     console.log('\n📚 SUPERVISED LEARNING');
     console.log('Teach the agent by providing (situation, correct action) pairs.\n');
-
+    
+    console.log('Choose input method:');
+    console.log('1. Answer questions (interactive)');
+    console.log('2. Paste JSON array (bulk)\n');
+    
+    const inputMethod = await question('Select method (1 or 2): ');
+    
+    if (inputMethod === '2') {
+        return await supervisedTrainingJSON();
+    }
+    
+    // Original interactive method
     const examples = [];
     let addMore = true;
 
@@ -84,10 +95,69 @@ async function supervisedTraining() {
     }
 }
 
+async function supervisedTrainingJSON() {
+    console.log('\n📋 JSON Input Mode');
+    console.log('Paste your JSON array of scenarios. You can:');
+    console.log('  - Paste individual objects: { ... }, { ... }, ...');
+    console.log('  - Paste an array: [ { ... }, { ... } ]');
+    console.log('  - End input with an empty line\n');
+    
+    const lines = [];
+    let lineCount = 0;
+    
+    while (true) {
+        const line = await question('');
+        if (line.trim() === '') {
+            if (lineCount > 0) break;
+            continue;
+        }
+        lines.push(line);
+        lineCount++;
+    }
+    
+    if (lines.length === 0) {
+        console.log('❌ No data provided');
+        return;
+    }
+    
+    try {
+        let jsonText = lines.join('\n').trim();
+        
+        // Auto-wrap in brackets if needed
+        if (jsonText.startsWith('{') && !jsonText.startsWith('[')) {
+            jsonText = '[' + jsonText + ']';
+        }
+        
+        const data = JSON.parse(jsonText);
+        const examples = Array.isArray(data) ? data : [data];
+        
+        console.log(`\n📊 Loaded ${examples.length} examples`);
+        
+        if (examples.length > 0) {
+            console.log(`\n🧠 Training agent on ${examples.length} examples...`);
+            agent.trainSupervised(examples);
+            console.log('✅ Supervised training complete!\n');
+        }
+    } catch (error) {
+        console.log(`❌ JSON Parse Error: ${error.message}`);
+    }
+}
+
 async function reinforcedTraining() {
     console.log('\n🎯 REINFORCEMENT LEARNING');
     console.log('Watch the agent attempt tasks and provide reward/penalty scores.\n');
-
+    
+    console.log('Choose input method:');
+    console.log('1. Answer questions (interactive)');
+    console.log('2. Paste JSON array (bulk)\n');
+    
+    const inputMethod = await question('Select method (1 or 2): ');
+    
+    if (inputMethod === '2') {
+        return await reinforcedTrainingJSON();
+    }
+    
+    // Original interactive method
     const episodes = [];
     let addMore = true;
 
@@ -116,6 +186,54 @@ async function reinforcedTraining() {
         console.log(`\n🧠 Training agent with ${episodes.length} episodes...`);
         agent.trainReinforced(episodes);
         console.log('✅ Reinforcement training complete!\n');
+    }
+}
+
+async function reinforcedTrainingJSON() {
+    console.log('\n📋 JSON Input Mode');
+    console.log('Paste your JSON array of episodes. You can:');
+    console.log('  - Paste individual objects: { ... }, { ... }, ...');
+    console.log('  - Paste an array: [ { ... }, { ... } ]');
+    console.log('  - End input with an empty line\n');
+    
+    const lines = [];
+    let lineCount = 0;
+    
+    while (true) {
+        const line = await question('');
+        if (line.trim() === '') {
+            if (lineCount > 0) break;
+            continue;
+        }
+        lines.push(line);
+        lineCount++;
+    }
+    
+    if (lines.length === 0) {
+        console.log('❌ No data provided');
+        return;
+    }
+    
+    try {
+        let jsonText = lines.join('\n').trim();
+        
+        // Auto-wrap in brackets if needed
+        if (jsonText.startsWith('{') && !jsonText.startsWith('[')) {
+            jsonText = '[' + jsonText + ']';
+        }
+        
+        const data = JSON.parse(jsonText);
+        const episodes = Array.isArray(data) ? data : [data];
+        
+        console.log(`\n📊 Loaded ${episodes.length} episodes`);
+        
+        if (episodes.length > 0) {
+            console.log(`\n🧠 Training agent with ${episodes.length} episodes...`);
+            agent.trainReinforced(episodes);
+            console.log('✅ Reinforcement training complete!\n');
+        }
+    } catch (error) {
+        console.log(`❌ JSON Parse Error: ${error.message}`);
     }
 }
 
