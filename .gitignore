@@ -6,3 +6,4 @@ data/training/*.json
 .env
 dist/
 build/
+agentFiles/
