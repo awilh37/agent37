@@ -39,7 +39,7 @@ function setupExecutionRefresh() {
 
 async function fetchExecutionDetails(execId) {
     try {
-        const response = await fetch(`/api/agent/execution/${execId}`);
+        const response = await fetch(`/agent37/api/agent/execution/${execId}`);
         if (response.ok) {
             const execution = await response.json();
             updateExecutionDisplay(execution);
@@ -53,7 +53,7 @@ async function fetchExecutionDetails(execId) {
 
 async function loadFullExecutionHistory(limit = 50, offset = 0) {
     try {
-        const response = await fetch(`/api/agent/execution-log?limit=${limit}&offset=${offset}`);
+        const response = await fetch(`/agent37/api/agent/execution-log?limit=${limit}&offset=${offset}`);
         if (response.ok) {
             const data = await response.json();
             historyData = data.executions || [];
@@ -88,9 +88,9 @@ function updateExecutionDisplay(execution) {
 
 async function refreshDashboard() {
     try {
-        const state = await fetch('/api/agent/state').then(r => r.json());
-        const history = await fetch('/api/training/history').then(r => r.json());
-        const brain = await fetch('/api/agent/brain-stats').then(r => r.json());
+        const state = await fetch('/agent37/api/agent/state').then(r => r.json());
+        const history = await fetch('/agent37/api/training/history').then(r => r.json());
+        const brain = await fetch('/agent37/api/agent/brain-stats').then(r => r.json());
 
         updateAgentStatus(state);
         updateStats(history, brain);
@@ -203,7 +203,7 @@ async function trainSupervised() {
             data = JSON.parse(data);
         }
 
-        const response = await fetch('/api/agent/train', {
+        const response = await fetch('/agent37/api/agent/train', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'supervised', data })
@@ -244,7 +244,7 @@ async function trainReinforced() {
             data = JSON.parse(data);
         }
 
-        const response = await fetch('/api/agent/train', {
+        const response = await fetch('/agent37/api/agent/train', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'reinforced', data })
@@ -351,7 +351,7 @@ async function confirmExecution() {
         document.getElementById('execution-error').classList.remove('show');
         
         const startTime = Date.now();
-        const response = await fetch('/api/agent/task', {
+        const response = await fetch('/agent37/api/agent/task', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action, params })
@@ -499,7 +499,7 @@ function updateHistoryDisplay(items) {
 
 async function viewExecutionDetails(executionId) {
     try {
-        const execution = await fetch(`/api/agent/execution/${executionId}`).then(r => r.json());
+        const execution = await fetch(`/agent37/api/agent/execution/${executionId}`).then(r => r.json());
         showExecutionModal(execution);
     } catch (error) {
         alert('Error loading execution details: ' + error.message);
@@ -593,9 +593,9 @@ function openMonitorDetails() {
 
 async function updateMonitorDetails() {
     try {
-        const state = await fetch('/api/agent/state').then(r => r.json());
-        const history = await fetch('/api/training/history').then(r => r.json());
-        const brain = await fetch('/api/agent/brain-stats').then(r => r.json());
+        const state = await fetch('/agent37/api/agent/state').then(r => r.json());
+        const history = await fetch('/agent37/api/training/history').then(r => r.json());
+        const brain = await fetch('/agent37/api/agent/brain-stats').then(r => r.json());
 
         // Agent Status
         document.getElementById('agent-status-detail').innerHTML = `

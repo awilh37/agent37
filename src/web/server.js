@@ -15,9 +15,7 @@ export default class WebServer {
   setupRoutes() {
     // Middleware
     this.app.use(express.json());
-    // Serve static files at /agent37 base path for reverse proxy compatibility
-    this.app.use('/agent37', express.static(path.join(__dirname, 'public')));
-
+    this.app.use(express.static(path.join(__dirname, 'public')));
     // API Routes
     this.app.get('/api/agent/state', (req, res) => {
       res.json(this.agent.getState());
