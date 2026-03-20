@@ -1,16 +1,9 @@
 import { execSync, exec } from 'child_process';
 import { promisify } from 'util';
-import FileEditor from './fileEditor.js';
-import CodeComponentGenerator from './codeComponentGenerator.js';
 
 const execAsync = promisify(exec);
 
 export default class TaskExecutor {
-  constructor() {
-    this.fileEditor = new FileEditor();
-    this.codeGenerator = new CodeComponentGenerator();
-  }
-
   async execute(task) {
     console.log(`⚡ Executing task: ${task.action}`);
 
@@ -21,10 +14,6 @@ export default class TaskExecutor {
         return this.executeWeb(task.params);
       case 'code':
         return this.executeCode(task.params);
-      case 'code_file':
-        return this.executeCodeFile(task.params);
-      case 'file_edit':
-        return this.executeFileEdit(task.params);
       case 'learn':
         return this.executeLearning(task.params);
       case 'idle':
@@ -99,133 +88,19 @@ export default class TaskExecutor {
         };
       }
 
-      // Use new component generator for smarter code generation
-      const generatedCode = this.codeGenerator.generateCombined(prompt);
+      // Generate HTML/CSS/JS based on prompt
+      const generatedCode = this.generateCodeFromPrompt(prompt);
       
       return {
         success: true,
-        reward: 0.75,
+        reward: 0.7,
         details: {
           prompt: prompt,
           language: 'html',
           codeLength: generatedCode.length,
-          note: 'Generated with component merging'
+          note: 'Generated based on prompt'
         },
         generatedCode: generatedCode
-      };
-    } catch (error) {
-      return { 
-        success: false, 
-        reward: -0.3, 
-        details: error.message,
-        generatedCode: null
-      };
-    }
-  }
-
-  // New: Create and edit files with code
-  async executeCodeFile(params) {
-    try {
-      const { prompt, filename } = params;
-      
-      if (!prompt) {
-        return { success: false, reward: -0.5, details: 'No prompt specified' };
-      }
-
-      // Generate filename if not provided
-      let fileName = filename;
-      if (!fileName) {
-        const name = prompt.toLowerCase()
-          .replace(/[^a-z0-9\s]/g, '')
-          .replace(/\s+/g, '-')
-          .substring(0, 30);
-        fileName = `${name || 'generated'}.html`;
-      }
-
-      // Generate code using component generator
-      const code = this.codeGenerator.generateCombined(prompt);
-
-      // Create file in agentFiles
-      const createResult = this.fileEditor.write(fileName, code);
-
-      if (!createResult.success) {
-        return { 
-          success: false, 
-          reward: -0.3, 
-          details: createResult.error,
-          generatedCode: null
-        };
-      }
-
-      return {
-        success: true,
-        reward: 0.85,
-        details: {
-          prompt,
-          filename: fileName,
-          message: 'File created successfully',
-          size: createResult.size
-        },
-        generatedCode: code,
-        filepath: fileName
-      };
-    } catch (error) {
-      return { 
-        success: false, 
-        reward: -0.3, 
-        details: error.message,
-        generatedCode: null
-      };
-    }
-  }
-
-  // New: File editing operations
-  async executeFileEdit(params) {
-    try {
-      const { action, filename, content, lineNumber, startLine, endLine } = params;
-
-      if (!action || !filename) {
-        return { success: false, reward: -0.5, details: 'Action and filename required' };
-      }
-
-      let result;
-      switch (action) {
-        case 'read':
-          result = this.fileEditor.read(filename);
-          break;
-        case 'write':
-          result = this.fileEditor.write(filename, content || '');
-          break;
-        case 'append':
-          result = this.fileEditor.append(filename, content || '');
-          break;
-        case 'insert':
-          result = this.fileEditor.insertLine(filename, lineNumber || 1, content || '');
-          break;
-        case 'replace':
-          result = this.fileEditor.replaceLine(filename, lineNumber || 1, content || '');
-          break;
-        case 'replace-range':
-          result = this.fileEditor.replaceRange(filename, startLine || 1, endLine || 1, content || '');
-          break;
-        case 'delete':
-          result = this.fileEditor.delete(filename);
-          break;
-        case 'list':
-          result = this.fileEditor.listFiles(filename);
-          break;
-        case 'stats':
-          result = this.fileEditor.getStats(filename);
-          break;
-        default:
-          return { success: false, reward: -0.3, details: `Unknown action: ${action}` };
-      }
-
-      return {
-        success: result.success,
-        reward: result.success ? 0.7 : -0.3,
-        details: result,
-        generatedCode: null
       };
     } catch (error) {
       return { 

@@ -1,7 +1,6 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import ExecutionLogger from '../agent/executionLogger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3737;
@@ -10,7 +9,6 @@ export default class WebServer {
   constructor(agent) {
     this.agent = agent;
     this.app = express();
-    this.executionLogger = new ExecutionLogger();
     this.setupRoutes();
   }
 
@@ -49,9 +47,7 @@ export default class WebServer {
           createdAt: Date.now()
         };
 
-        const startTime = Date.now();
         const result = await this.agent.executor.execute(task);
-        const duration = Date.now() - startTime;
         
         // Store in memory
         this.agent.memory.addExperience({
@@ -64,62 +60,16 @@ export default class WebServer {
           generatedCode: result.generatedCode
         });
 
-        // Save to persistent execution log
-        this.executionLogger.saveExecution({
-          id: task.id,
-          action: task.action,
-          params: task.params,
-          timestamp: Date.now(),
-          result: {
-            ...result,
-            duration
-          },
-          confidence: task.confidence
-        });
-
         res.json({ 
           success: true, 
           message: 'Task executed successfully',
           taskId: task.id,
           action: action,
-          result: {
-            ...result,
-            duration
-          }
+          result: result
         });
       } catch (error) {
         res.status(500).json({ 
           error: 'Task execution failed',
-          message: error.message 
-        });
-      }
-    });
-
-    this.app.post('/api/agent/file-edit', async (req, res) => {
-      const { action, filename, content, lineNumber, startLine, endLine } = req.body;
-      
-      if (!action || !filename) {
-        return res.status(400).json({ error: 'Action and filename required' });
-      }
-
-      try {
-        const result = await this.agent.executor.executeFileEdit({
-          action,
-          filename,
-          content,
-          lineNumber,
-          startLine,
-          endLine
-        });
-
-        res.json({
-          success: result.success,
-          message: result.success ? 'File operation completed' : 'File operation failed',
-          result: result.details
-        });
-      } catch (error) {
-        res.status(500).json({ 
-          error: 'File operation failed',
           message: error.message 
         });
       }
@@ -171,25 +121,14 @@ export default class WebServer {
     });
 
     this.app.get('/api/agent/execution-log', (req, res) => {
-      // Get full persistent execution history
-      const limit = parseInt(req.query.limit) || 50;
-      const offset = parseInt(req.query.offset) || 0;
-      const data = this.executionLogger.getExecutions(limit, offset);
+      // Get recent executions from memory
+      const limit = req.query.limit || 10;
+      const stats = this.agent.memory.getStats();
       
-      res.json(data);
-    });
-
-    this.app.get('/api/agent/execution/:id', (req, res) => {
-      const execution = this.executionLogger.getExecution(req.params.id);
-      if (!execution) {
-        return res.status(404).json({ error: 'Execution not found' });
-      }
-      res.json(execution);
-    });
-
-    this.app.delete('/api/agent/execution/:id', (req, res) => {
-      const success = this.executionLogger.deleteExecution(req.params.id);
-      res.json({ success });
+      res.json({
+        recentExecutions: stats.recentExperiences || [],
+        actionStats: stats.actionStats
+      });
     });
 
     // Serve dashboard as root
