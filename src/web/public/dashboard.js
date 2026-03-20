@@ -1,17 +1,21 @@
 // Global state
 let executionState = {};
 let historyData = [];
+let currentExecutionId = null;
+let executionRefreshInterval = null;
 
 // Initialize
 window.addEventListener('load', () => {
     initializeDashboard();
     setInterval(refreshDashboard, 2000);
+    setupExecutionRefresh();
 });
 
 // ==================== INITIALIZATION ====================
 
 async function initializeDashboard() {
     await refreshDashboard();
+    await loadFullExecutionHistory();
     setupEventListeners();
 }
 
@@ -22,7 +26,65 @@ function setupEventListeners() {
     });
 }
 
+// ==================== EXECUTION REFRESH ====================
+
+function setupExecutionRefresh() {
+    // Faster refresh (every 500ms) during execution for real-time updates
+    setInterval(() => {
+        if (currentExecutionId) {
+            fetchExecutionDetails(currentExecutionId);
+        }
+    }, 500);
+}
+
+async function fetchExecutionDetails(execId) {
+    try {
+        const response = await fetch(`/api/agent/execution/${execId}`);
+        if (response.ok) {
+            const execution = await response.json();
+            updateExecutionDisplay(execution);
+        }
+    } catch (error) {
+        console.error('Error fetching execution details:', error);
+    }
+}
+
 // ==================== REFRESH DATA ====================
+
+async function loadFullExecutionHistory(limit = 50, offset = 0) {
+    try {
+        const response = await fetch(`/api/agent/execution-log?limit=${limit}&offset=${offset}`);
+        if (response.ok) {
+            const data = await response.json();
+            historyData = data.executions || [];
+            updateHistoryDisplay(historyData);
+            updateHistoryCount(data.total);
+        }
+    } catch (error) {
+        console.error('Error loading execution history:', error);
+    }
+}
+
+function updateHistoryCount(total) {
+    const countEl = document.getElementById('history-count');
+    if (countEl) {
+        countEl.textContent = `Total Executions: ${total}`;
+    }
+}
+
+function updateExecutionDisplay(execution) {
+    // Update live during execution
+    const statusEl = document.getElementById('exec-status');
+    const outputEl = document.getElementById('exec-output');
+    
+    if (execution.result.generatedCode) {
+        outputEl.innerHTML = `<pre>${escapeHtml(execution.result.generatedCode)}</pre>`;
+    }
+    
+    statusEl.textContent = execution.result.success ? 
+        `✅ Task Executed Successfully (${execution.action})` :
+        `❌ Task Failed (${execution.action})`;
+}
 
 async function refreshDashboard() {
     try {
@@ -283,6 +345,11 @@ async function confirmExecution() {
     const { action, params } = executionState;
     
     try {
+        // Show executing status
+        document.getElementById('exec-status').textContent = `⏳ Executing ${action}...`;
+        document.getElementById('execution-results').classList.add('show');
+        document.getElementById('execution-error').classList.remove('show');
+        
         const startTime = Date.now();
         const response = await fetch('/api/agent/task', {
             method: 'POST',
@@ -293,14 +360,24 @@ async function confirmExecution() {
         const result = await response.json();
         const executionTime = Date.now() - startTime;
 
+        // Track execution ID for real-time updates
+        if (result.taskId) {
+            currentExecutionId = result.taskId;
+        }
+
         if (response.ok && result.result.success) {
-            displayExecutionResults(result.result, executionTime, action);
+            displayExecutionResults(result.result, executionTime, action, result.taskId);
             addToHistory(action, result.result, true, executionTime);
         } else {
             displayExecutionError(result.result || result.error);
             addToHistory(action, result.result, false, executionTime);
         }
 
+        // Reload history to show new execution
+        setTimeout(() => {
+            loadFullExecutionHistory();
+        }, 500);
+        
         await refreshDashboard();
     } catch (error) {
         displayExecutionError(error.message);
@@ -312,7 +389,7 @@ function cancelExecution() {
     document.getElementById('confirmation-dialog').style.display = 'none';
 }
 
-function displayExecutionResults(result, time, action) {
+function displayExecutionResults(result, time, action, taskId) {
     const resultsSection = document.getElementById('execution-results');
     
     // Status
@@ -322,19 +399,36 @@ function displayExecutionResults(result, time, action) {
     // Output - handle generated code specially
     const outputBox = document.getElementById('exec-output');
     if (result.generatedCode) {
-        outputBox.innerHTML = `<pre>${escapeHtml(result.generatedCode)}</pre>`;
+        // Show code with syntax highlighting
+        outputBox.innerHTML = `<pre><code>${escapeHtml(result.generatedCode)}</code></pre>`;
     } else if (result.details) {
         outputBox.textContent = JSON.stringify(result.details, null, 2);
     } else {
         outputBox.textContent = 'Task completed';
     }
     
-    // Timing
+    // Timing and details
     document.getElementById('exec-timing').innerHTML = `
         ⏱️ Execution Time: ${time}ms<br>
-        🎯 Confidence: ${(result.confidence * 100).toFixed(1)}%<br>
-        💰 Reward: ${(result.reward || 0).toFixed(2)}
+        🎯 Confidence: ${(result.confidence * 100).toFixed(1) || 'N/A'}%<br>
+        💰 Reward: ${(result.reward || 0).toFixed(2)}<br>
+        ${taskId ? `<br>📋 Task ID: <code style="font-size: 0.9rem;">${taskId}</code>` : ''}
     `;
+    
+    // Add view in history link
+    if (taskId) {
+        const linkEl = document.createElement('button');
+        linkEl.className = 'btn btn-small';
+        linkEl.textContent = '📋 View in History';
+        linkEl.onclick = () => {
+            openPanel('history');
+            setTimeout(() => {
+                const histItem = document.querySelector(`[data-task-id="${taskId}"]`);
+                if (histItem) histItem.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        };
+        document.getElementById('exec-timing').appendChild(linkEl);
+    }
     
     resultsSection.classList.add('show');
     document.getElementById('execution-error').classList.remove('show');
@@ -375,20 +469,112 @@ function updateHistoryDisplay(items) {
         return;
     }
 
-    list.innerHTML = items.map(item => `
-        <div class="history-item">
-            <div class="history-header">
-                <span class="history-action">🎯 ${item.action}</span>
-                <span class="history-time">${item.time}</span>
+    list.innerHTML = items.map((item, idx) => {
+        const timestamp = item.timestamp ? new Date(item.timestamp).toLocaleString() : item.time;
+        const resultText = typeof item.result === 'object' 
+            ? JSON.stringify(item.result).substring(0, 100) 
+            : String(item.result).substring(0, 100);
+        
+        return `
+            <div class="history-item" data-task-id="${item.id || ''}" onclick="viewExecutionDetails('${item.id || idx}')">
+                <div class="history-header">
+                    <span class="history-action">🎯 ${item.action}</span>
+                    <span class="history-time">${timestamp}</span>
+                </div>
+                <div class="history-result ${item.result?.success || item.success ? 'success' : 'failure'}">
+                    ${item.result?.success || item.success ? '✅' : '❌'} 
+                    ${resultText}${resultText.length >= 100 ? '...' : ''}
+                </div>
+                <div class="history-time" style="margin-top: 0.5rem;">
+                    ⏱️ ${item.result?.duration || item.executionTime || 0}ms
+                    ${item.result?.reward !== undefined ? ` | 💰 ${item.result.reward.toFixed(2)}` : ''}
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <small style="color: #aaa;">Click to view full details</small>
+                </div>
             </div>
-            <div class="history-result ${item.success ? 'success' : 'failure'}">
-                ${item.success ? '✅' : '❌'} ${item.result}
+        `;
+    }).join('');
+}
+
+async function viewExecutionDetails(executionId) {
+    try {
+        const execution = await fetch(`/api/agent/execution/${executionId}`).then(r => r.json());
+        showExecutionModal(execution);
+    } catch (error) {
+        alert('Error loading execution details: ' + error.message);
+    }
+}
+
+function showExecutionModal(execution) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.style.zIndex = '2000';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 90%; max-height: 90vh; overflow-y: auto;">
+            <span class="close" onclick="this.parentElement.parentElement.style.display='none'">&times;</span>
+            <h2>Execution Details</h2>
+            
+            <div style="margin: 1rem 0;">
+                <h3>📋 Task Info</h3>
+                <p><strong>ID:</strong> <code>${execution.id}</code></p>
+                <p><strong>Action:</strong> ${execution.action}</p>
+                <p><strong>Timestamp:</strong> ${new Date(execution.timestamp).toLocaleString()}</p>
+                <p><strong>Status:</strong> ${execution.result.success ? '✅ Success' : '❌ Failed'}</p>
             </div>
-            <div class="history-time" style="margin-top: 0.5rem;">
-                ⏱️ ${item.executionTime}ms
+            
+            <div style="margin: 1rem 0;">
+                <h3>📊 Metrics</h3>
+                <p><strong>Execution Time:</strong> ${execution.result.duration}ms</p>
+                <p><strong>Reward:</strong> ${execution.result.reward?.toFixed(2) || 'N/A'}</p>
+                <p><strong>Confidence:</strong> ${execution.confidence ? (execution.confidence * 100).toFixed(1) + '%' : 'N/A'}</p>
+            </div>
+            
+            ${execution.result.generatedCode ? `
+                <div style="margin: 1rem 0;">
+                    <h3>💻 Generated Code</h3>
+                    <pre style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; overflow-x: auto;">
+<code>${escapeHtml(execution.result.generatedCode)}</code>
+                    </pre>
+                </div>
+            ` : ''}
+            
+            ${execution.result.details ? `
+                <div style="margin: 1rem 0;">
+                    <h3>📄 Details</h3>
+                    <pre>${escapeHtml(JSON.stringify(execution.result.details, null, 2))}</pre>
+                </div>
+            ` : ''}
+            
+            ${execution.result.stdout ? `
+                <div style="margin: 1rem 0;">
+                    <h3>📤 Output</h3>
+                    <pre style="background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+${escapeHtml(execution.result.stdout)}
+                    </pre>
+                </div>
+            ` : ''}
+            
+            ${execution.result.stderr ? `
+                <div style="margin: 1rem 0;">
+                    <h3>⚠️ Error Output</h3>
+                    <pre style="background: #2d1f1f; color: #ff6b6b; padding: 1rem; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+${escapeHtml(execution.result.stderr)}
+                    </pre>
+                </div>
+            ` : ''}
+            
+            <div style="margin-top: 2rem;">
+                <button class="btn btn-primary" onclick="this.parentElement.parentElement.style.display='none'">Close</button>
             </div>
         </div>
-    `).join('');
+    `;
+    
+    document.body.appendChild(modal);
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    };
 }
 
 function clearHistory() {
