@@ -95,6 +95,36 @@ export default class WebServer {
       }
     });
 
+    this.app.post('/api/agent/file-edit', async (req, res) => {
+      const { action, filename, content, lineNumber, startLine, endLine } = req.body;
+      
+      if (!action || !filename) {
+        return res.status(400).json({ error: 'Action and filename required' });
+      }
+
+      try {
+        const result = await this.agent.executor.executeFileEdit({
+          action,
+          filename,
+          content,
+          lineNumber,
+          startLine,
+          endLine
+        });
+
+        res.json({
+          success: result.success,
+          message: result.success ? 'File operation completed' : 'File operation failed',
+          result: result.details
+        });
+      } catch (error) {
+        res.status(500).json({ 
+          error: 'File operation failed',
+          message: error.message 
+        });
+      }
+    });
+
     this.app.post('/api/agent/train', (req, res) => {
       const { type, data } = req.body;
 
